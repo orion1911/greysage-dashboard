@@ -1,4 +1,5 @@
 # Quick Reference Guide
+ONEDRIVE_URL = os.getenv("ONEDRIVE_FILE_URL")
 
 ## File Mapping for Vercel
 
