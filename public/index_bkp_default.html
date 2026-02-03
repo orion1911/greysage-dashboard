@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Production Dashboard</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #111318;
+            --bg-warm: #191C24;
+            --surface: #1E222B;
+            --text: #E8EAF0;
+            --text-secondary: #8B90A0;
+            --text-tertiary: #555B6E;
+            --border: #282D3A;
+            --border-hover: #363C4D;
+
+            --coral: #F07A64;
+            --coral-soft: rgba(240,122,100,0.12);
+            --coral-mid: rgba(240,122,100,0.25);
+            --teal: #3CC4B4;
+            --teal-soft: rgba(60,196,180,0.12);
+            --amber: #F0A820;
+            --amber-soft: rgba(240,168,32,0.12);
+            --indigo: #7B88E0;
+            --indigo-soft: rgba(123,136,224,0.12);
+
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.15);
+            --shadow-md: 0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.2);
+            --shadow-lg: 0 12px 40px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.25);
+
+            --radius: 16px;
+            --radius-sm: 10px;
+            --font-serif: 'DM Serif Display', Georgia, serif;
+            --font-sans: 'DM Sans', -apple-system, sans-serif;
+            --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg);
+            color: var(--text);
+            -webkit-font-smoothing: antialiased;
+            line-height: 1.5;
+        }
+
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            background:
+                radial-gradient(ellipse 50% 40% at 15% 0%, rgba(240,122,100,0.05) 0%, transparent 70%),
+                radial-gradient(ellipse 40% 50% at 85% 100%, rgba(60,196,180,0.04) 0%, transparent 70%);
+            pointer-events: none; z-index: 0;
+        }
+
+        /* ── Loader ── */
+        .loader-overlay {
+            position: fixed; inset: 0;
+            background: var(--bg);
+            display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 24px;
+            z-index: 9999;
+            transition: opacity 0.5s var(--ease-out), visibility 0.5s;
+        }
+        .loader-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+        .loader-dots { display: flex; gap: 8px; }
+        .loader-dots span {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: var(--coral);
+            animation: bounce 1.2s var(--ease-out) infinite;
+        }
+        .loader-dots span:nth-child(2) { animation-delay: 0.15s; background: var(--teal); }
+        .loader-dots span:nth-child(3) { animation-delay: 0.3s; background: var(--amber); }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+            40% { transform: scale(1.1); opacity: 1; }
+        }
+
+        .loader-label {
+            font-size: 14px; font-weight: 500;
+            color: var(--text-secondary); letter-spacing: 0.5px;
+        }
+
+        /* ── Container ── */
+        .container {
+            position: relative; z-index: 1;
+            max-width: 1480px;
+            margin: 0 auto;
+            padding: 36px 32px 60px;
+        }
+
+        /* ── Header ── */
+        .header {
+            display: flex; justify-content: space-between; align-items: flex-end;
+            margin-bottom: 40px; flex-wrap: wrap; gap: 20px;
+        }
+        .header-left { display: flex; flex-direction: column; gap: 4px; }
+        .header-label {
+            font-size: 12px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 2px;
+            color: var(--coral);
+        }
+        .header h1 {
+            font-family: var(--font-serif);
+            font-size: 36px; font-weight: 400;
+            color: var(--text); line-height: 1.15;
+        }
+        .header-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+        .chip {
+            font-size: 13px; font-weight: 500;
+            color: var(--text-secondary);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 8px 16px; border-radius: 100px;
+            display: flex; align-items: center; gap: 7px;
+            box-shadow: var(--shadow-sm);
+        }
+        .chip .live-dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: var(--teal);
+            box-shadow: 0 0 0 3px rgba(42,168,154,0.2);
+            animation: pulse 2.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 3px rgba(42,168,154,0.2); }
+            50% { box-shadow: 0 0 0 6px rgba(42,168,154,0.08); }
+        }
+
+        .refresh-btn {
+            font-family: var(--font-sans);
+            font-size: 13px; font-weight: 600;
+            padding: 10px 22px;
+            background: var(--text); color: var(--bg);
+            border: none; border-radius: 100px; cursor: pointer;
+            display: flex; align-items: center; gap: 8px;
+            transition: all 0.35s var(--ease-out);
+            box-shadow: var(--shadow-md);
+        }
+        .refresh-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); background: #d0d3dc; }
+        .refresh-btn:active { transform: translateY(0); }
+        .refresh-btn.loading { opacity: 0.55; cursor: wait; }
+        .refresh-btn svg { transition: transform 0.5s var(--ease-out); }
+        .refresh-btn:hover svg { transform: rotate(90deg); }
+
+        /* ── Error ── */
+        .error-message {
+            font-size: 14px; font-weight: 500;
+            background: var(--coral-soft); border: 1px solid var(--coral-mid); color: var(--coral);
+            padding: 14px 20px; border-radius: var(--radius-sm);
+            margin-bottom: 20px; display: none; align-items: center; gap: 10px;
+        }
+        .error-message.show { display: flex; }
+
+        /* ── KPI Cards ── */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px; margin-bottom: 32px;
+        }
+
+        .kpi-card {
+            position: relative;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 28px 24px;
+            transition: all 0.4s var(--ease-out);
+            overflow: hidden; box-shadow: var(--shadow-sm);
+            animation: rise 0.7s var(--ease-out) both;
+        }
+        .kpi-card:nth-child(1) { animation-delay: 0.0s; }
+        .kpi-card:nth-child(2) { animation-delay: 0.07s; }
+        .kpi-card:nth-child(3) { animation-delay: 0.14s; }
+        .kpi-card:nth-child(4) { animation-delay: 0.21s; }
+
+        @keyframes rise {
+            from { opacity: 0; transform: translateY(24px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-6px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--border-hover);
+        }
+
+        .kpi-bar {
+            position: absolute; top: 0; left: 24px; right: 24px;
+            height: 3px; border-radius: 0 0 4px 4px;
+        }
+        .kpi-card:nth-child(1) .kpi-bar { background: linear-gradient(90deg, var(--indigo), var(--indigo-soft)); }
+        .kpi-card:nth-child(2) .kpi-bar { background: linear-gradient(90deg, var(--coral), var(--coral-soft)); }
+        .kpi-card:nth-child(3) .kpi-bar { background: linear-gradient(90deg, var(--amber), var(--amber-soft)); }
+        .kpi-card:nth-child(4) .kpi-bar { background: linear-gradient(90deg, var(--teal), var(--teal-soft)); }
+
+        .kpi-icon-wrap {
+            width: 42px; height: 42px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 18px;
+        }
+        .kpi-card:nth-child(1) .kpi-icon-wrap { background: var(--indigo-soft); color: var(--indigo); }
+        .kpi-card:nth-child(2) .kpi-icon-wrap { background: var(--coral-soft); color: var(--coral); }
+        .kpi-card:nth-child(3) .kpi-icon-wrap { background: var(--amber-soft); color: var(--amber); }
+        .kpi-card:nth-child(4) .kpi-icon-wrap { background: var(--teal-soft); color: var(--teal); }
+
+        .kpi-label {
+            font-size: 12px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 1.2px;
+            color: var(--text-tertiary); margin-bottom: 6px;
+        }
+        .kpi-value {
+            font-family: var(--font-serif);
+            font-size: 38px; font-weight: 400;
+            line-height: 1; margin-bottom: 4px;
+        }
+        .kpi-card:nth-child(1) .kpi-value { color: var(--indigo); }
+        .kpi-card:nth-child(2) .kpi-value { color: var(--coral); }
+        .kpi-card:nth-child(3) .kpi-value { color: var(--amber); }
+        .kpi-card:nth-child(4) .kpi-value { color: var(--teal); }
+
+        .kpi-sub { font-size: 13px; color: var(--text-tertiary); margin-top: 2px; }
+
+        /* ── Grid ── */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 18px; margin-bottom: 18px;
+        }
+
+        /* ── Cards ── */
+        .card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); padding: 28px;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.4s var(--ease-out);
+            animation: rise 0.7s var(--ease-out) both;
+            animation-delay: 0.25s;
+        }
+        .card:hover { box-shadow: var(--shadow-md); border-color: var(--border-hover); }
+        .card-full { grid-column: 1 / -1; }
+
+        .card-header {
+            display: flex; align-items: center;
+            justify-content: space-between; margin-bottom: 22px;
+        }
+        .card-title { display: flex; align-items: center; gap: 12px; }
+        .card-title-icon {
+            width: 34px; height: 34px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--bg-warm); color: var(--text-secondary);
+        }
+        .card-title h3 {
+            font-family: var(--font-serif);
+            font-size: 20px; font-weight: 400; color: var(--text);
+        }
+        .card-meta {
+            font-size: 12px; font-weight: 500; color: var(--text-tertiary);
+            background: var(--bg); border: 1px solid var(--border);
+            padding: 5px 12px; border-radius: 100px;
+        }
+
+        /* ── Tables ── */
+        .table-wrapper {
+            overflow-x: auto; border-radius: var(--radius-sm);
+            border: 1px solid var(--border); background: var(--bg);
+        }
+        table { width: 100%; border-collapse: collapse; }
+        thead { background: var(--bg-warm); }
+        th {
+            padding: 12px 18px; text-align: left;
+            font-size: 11px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1px;
+            color: var(--text-tertiary);
+            border-bottom: 1px solid var(--border);
+        }
+        tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: background 0.2s ease;
+        }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: rgba(240,122,100,0.04); }
+        td { padding: 13px 18px; font-size: 14px; color: var(--text); }
+        td:first-child { font-weight: 600; }
+
+        .badge {
+            display: inline-flex; align-items: center;
+            padding: 4px 11px; border-radius: 100px;
+            font-size: 12px; font-weight: 600;
+            min-width: 48px; justify-content: center;
+        }
+        .badge-making    { background: var(--coral-soft); color: var(--coral); }
+        .badge-washing   { background: var(--amber-soft); color: var(--amber); }
+        .badge-completed { background: var(--teal-soft);  color: var(--teal); }
+        .badge-pending   { background: var(--coral-soft); color: var(--coral); }
+
+        /* ── Charts ── */
+        .chart-container { position: relative; height: 320px; }
+
+        /* ── Footer ── */
+        .footer {
+            text-align: center; padding: 28px 20px; margin-top: 32px;
+            border-top: 1px solid var(--border);
+            font-size: 13px; color: var(--text-tertiary);
+            display: flex; align-items: center; justify-content: center; gap: 20px;
+        }
+        .footer .dot {
+            width: 3px; height: 3px; border-radius: 50%;
+            background: var(--text-tertiary);
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 1200px) { .grid { grid-template-columns: 1fr; } }
+        @media (max-width: 900px)  { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 600px)  {
+            .container { padding: 20px 16px; }
+            .header h1 { font-size: 28px; }
+            .kpi-grid { grid-template-columns: 1fr; }
+            .kpi-value { font-size: 30px; }
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 3px; }
+        ::selection { background: rgba(240,122,100,0.25); color: var(--coral); }
+    </style>
+</head>
+
+<body>
+    <div class="loader-overlay" id="loader">
+        <div class="loader-dots"><span></span><span></span><span></span></div>
+        <div class="loader-label">Loading dashboard</div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <div class="header-label">Overview</div>
+                <h1>Production Dashboard</h1>
+            </div>
+            <div class="header-controls">
+                <div class="chip">
+                    <div class="live-dot"></div>
+                    <span><span id="processingTime">—</span> ms</span>
+                </div>
+                <button class="refresh-btn" id="refreshBtn" onclick="loadData()">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    Refresh
+                </button>
+            </div>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-bar"></div>
+                <div class="kpi-icon-wrap">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+                </div>
+                <div class="kpi-label">Total Pieces</div>
+                <div class="kpi-value" id="totalPcs">0</div>
+                <div class="kpi-sub">All tracked items</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-bar"></div>
+                <div class="kpi-icon-wrap">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                </div>
+                <div class="kpi-label">Making</div>
+                <div class="kpi-value" id="totalMaking">0</div>
+                <div class="kpi-sub">In production</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-bar"></div>
+                <div class="kpi-icon-wrap">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 12a11.05 11.05 0 0 0-22 0zm0 0a11.05 11.05 0 0 1-22 0"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+                </div>
+                <div class="kpi-label">In Washing</div>
+                <div class="kpi-value" id="totalInWashing">0</div>
+                <div class="kpi-sub">Being processed</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-bar"></div>
+                <div class="kpi-icon-wrap">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                </div>
+                <div class="kpi-label">Completed</div>
+                <div class="kpi-value" id="totalOutWashing">0</div>
+                <div class="kpi-sub">Ready for delivery</div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <div class="card-title-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+                        <h3>Client Performance</h3>
+                    </div>
+                    <div class="card-meta">Top 10</div>
+                </div>
+                <div class="chart-container"><canvas id="clientChart"></canvas></div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <div class="card-title-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></div>
+                        <h3>Washer Load</h3>
+                    </div>
+                    <div class="card-meta">Pending</div>
+                </div>
+                <div class="chart-container"><canvas id="washerChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <div class="card-title-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+                        <h3>Client Summary</h3>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table id="clientTable">
+                        <thead><tr><th>Client</th><th>Making</th><th>In Washing</th><th>Completed</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <div class="card-title-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+                        <h3>Washer Summary</h3>
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table id="washerTable">
+                        <thead><tr><th>Washer</th><th>In</th><th>Out</th><th>Pending</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card card-full" style="animation-delay:.35s">
+            <div class="card-header">
+                <div class="card-title">
+                    <div class="card-title-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+                    <h3>Complete Breakdown</h3>
+                </div>
+                <div class="card-meta">First 100 items</div>
+            </div>
+            <div class="table-wrapper">
+                <table id="detailTable">
+                    <thead><tr><th>Client</th><th>Washing</th><th>Pcs</th><th>Status</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="footer">
+            <span id="timestamp">Last updated: —</span>
+            <div class="dot"></div>
+            <span>Production Tracker v2</span>
+        </div>
+    </div>
+
+    <script>
+        let chartInstances = {};
+        Chart.defaults.font.family = "'DM Sans', sans-serif";
+        Chart.defaults.font.size = 12;
+        Chart.defaults.color = '#555B6E';
+
+        function showLoader()  { document.getElementById("loader").classList.remove("hidden"); }
+        function hideLoader()  { document.getElementById("loader").classList.add("hidden"); }
+        function showError(msg) {
+            const el = document.getElementById("errorMessage");
+            el.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> ${msg}`;
+            el.classList.add("show");
+        }
+        function hideError() { document.getElementById("errorMessage").classList.remove("show"); }
+
+        function animateValue(id, target) {
+            const el = document.getElementById(id);
+            const start = parseInt(el.textContent.replace(/,/g, '')) || 0;
+            const diff = target - start;
+            if (diff === 0) { el.textContent = target.toLocaleString(); return; }
+            const duration = 700, t0 = performance.now();
+            (function step(now) {
+                const p = Math.min((now - t0) / duration, 1);
+                el.textContent = Math.round(start + diff * (1 - Math.pow(1 - p, 3))).toLocaleString();
+                if (p < 1) requestAnimationFrame(step);
+            })(t0);
+        }
+
+        async function loadData() {
+            showLoader(); hideError();
+            document.getElementById("refreshBtn").classList.add("loading");
+            document.getElementById("refreshBtn").disabled = true;
+            try {
+                let apiUrl = window.location.origin + "/api/process";
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                    apiUrl = "http://localhost:3000/api/process";
+
+                const res = await fetch(apiUrl, { method: 'GET', headers: { 'Accept': 'application/json' } });
+                if (!res.ok) throw new Error(`API returned ${res.status}`);
+
+                let data;
+                const ct = res.headers.get('content-type');
+                if (ct && ct.includes('application/json')) {
+                    const body = await res.text();
+                    try { data = JSON.parse(JSON.parse(body).body); } catch { data = JSON.parse(body); }
+                } else throw new Error('Invalid response format');
+
+                if (data.error) { showError(data.error); hideLoader(); return; }
+
+                animateValue("totalPcs", data.total_pcs || 0);
+                animateValue("totalMaking", data.total_making || 0);
+                animateValue("totalInWashing", data.total_in_washing || 0);
+                animateValue("totalOutWashing", data.total_out_washing || 0);
+
+                if (data.processing_time)
+                    document.getElementById("processingTime").textContent = Math.round(data.processing_time * 1000);
+
+                renderClientTable(data.client_summary || []);
+                renderWasherTable(data.washer_summary || []);
+                renderBreakdown(data.rows || []);
+                renderClientChart(data.client_summary || []);
+                renderWasherChart(data.washer_summary || []);
+
+                const ts = new Date(data.timestamp);
+                document.getElementById("timestamp").textContent = `Last updated: ${ts.toLocaleString()}`;
+            } catch (err) {
+                showError(err.message || "Failed to load data.");
+                console.error("Error:", err);
+            } finally {
+                hideLoader();
+                document.getElementById("refreshBtn").classList.remove("loading");
+                document.getElementById("refreshBtn").disabled = false;
+            }
+        }
+
+        function renderClientTable(rows) {
+            document.querySelector("#clientTable tbody").innerHTML = rows.map(r => `
+                <tr>
+                    <td>${r.CLIENT}</td>
+                    <td><span class="badge badge-making">${(r.MAKING||0).toLocaleString()}</span></td>
+                    <td><span class="badge badge-washing">${(r.IN_WASHING||0).toLocaleString()}</span></td>
+                    <td><span class="badge badge-completed">${(r.OUT_WASHING||0).toLocaleString()}</span></td>
+                </tr>`).join("") || `<tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);padding:32px">No data</td></tr>`;
+        }
+
+        function renderWasherTable(rows) {
+            document.querySelector("#washerTable tbody").innerHTML = rows.map(r => `
+                <tr>
+                    <td>${r.WASHER}</td>
+                    <td><span class="badge badge-washing">${(r.IN_WASHING||0).toLocaleString()}</span></td>
+                    <td><span class="badge badge-completed">${(r.OUT_WASHING||0).toLocaleString()}</span></td>
+                    <td><span class="badge badge-pending">${(r.PENDING||0).toLocaleString()}</span></td>
+                </tr>`).join("") || `<tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);padding:32px">No data</td></tr>`;
+        }
+
+        function renderBreakdown(rows) {
+            document.querySelector("#detailTable tbody").innerHTML = rows.slice(0, 100).map(r => {
+                const status = r.MAKING > 0 ? "Making" : (r.OUT_WASHING > 0 && r.OUT_WASHING >= r.IN_WASHING ? "Completed" : "Washing");
+                const cls = status === "Making" ? "badge-making" : status === "Washing" ? "badge-washing" : "badge-completed";
+                return `<tr>
+                    <td>${r.CLIENT}</td>
+                    <td style="color:var(--text-secondary)">${r.WASHING || "—"}</td>
+                    <td>${(r.PCS||0).toLocaleString()}</td>
+                    <td><span class="badge ${cls}">${status}</span></td>
+                </tr>`;
+            }).join("") || `<tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);padding:32px">No data</td></tr>`;
+        }
+
+        function renderClientChart(rows) {
+            const ctx = document.getElementById("clientChart");
+            if (chartInstances.clientChart) chartInstances.clientChart.destroy();
+            const top = rows.slice(0, 10);
+            chartInstances.clientChart = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: top.map(r => r.CLIENT),
+                    datasets: [
+                        { label: "Making",     data: top.map(r => r.MAKING),      backgroundColor: "#F07A64", borderRadius: 8, borderSkipped: false, barPercentage: 0.65 },
+                        { label: "In Washing", data: top.map(r => r.IN_WASHING),   backgroundColor: "#F0A820", borderRadius: 8, borderSkipped: false, barPercentage: 0.65 },
+                        { label: "Completed",  data: top.map(r => r.OUT_WASHING),  backgroundColor: "#3CC4B4", borderRadius: 8, borderSkipped: false, barPercentage: 0.65 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { boxWidth: 12, padding: 20, usePointStyle: true, pointStyle: 'rectRounded', font: { weight: 500 } } },
+                        tooltip: { backgroundColor: '#282D3A', titleFont: { family: "'DM Sans'", weight: 600 }, bodyFont: { family: "'DM Sans'" }, padding: 14, cornerRadius: 10, titleColor: '#E8EAF0', bodyColor: '#8B90A0' }
+                    },
+                    scales: {
+                        y: { ticks: { color: "#555B6E" }, grid: { color: "#282D3A", drawBorder: false }, beginAtZero: true },
+                        x: { ticks: { color: "#8B90A0", maxRotation: 45 }, grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function renderWasherChart(rows) {
+            const ctx = document.getElementById("washerChart");
+            if (chartInstances.washerChart) chartInstances.washerChart.destroy();
+            chartInstances.washerChart = new Chart(ctx, {
+                type: "doughnut",
+                data: {
+                    labels: rows.map(r => r.WASHER),
+                    datasets: [{
+                        data: rows.map(r => r.PENDING),
+                        backgroundColor: ["#F07A64","#3CC4B4","#7B88E0","#F0A820","#B07AE8","#5CC4C0","#F4A060"],
+                        borderColor: '#1E222B', borderWidth: 3, borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, cutout: '62%',
+                    plugins: {
+                        legend: { position: "bottom", labels: { boxWidth: 10, padding: 18, usePointStyle: true, pointStyle: 'circle', font: { weight: 500 } } },
+                        tooltip: { backgroundColor: '#282D3A', titleFont: { family: "'DM Sans'", weight: 600 }, bodyFont: { family: "'DM Sans'" }, padding: 14, cornerRadius: 10, titleColor: '#E8EAF0', bodyColor: '#8B90A0' }
+                    }
+                }
+            });
+        }
+
+        window.addEventListener("load", loadData);
+    </script>
+</body>
+</html>
