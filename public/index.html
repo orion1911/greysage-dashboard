@@ -13,28 +13,28 @@
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
-            --bg: #F8F6F1;
-            --bg-warm: #F2EFE8;
-            --surface: #FFFFFF;
-            --text: #1B1B1F;
-            --text-secondary: #7C7C85;
-            --text-tertiary: #AEAEB5;
-            --border: #E8E5DE;
-            --border-hover: #D5D0C6;
+            --bg: #111318;
+            --bg-warm: #191C24;
+            --surface: #1E222B;
+            --text: #E8EAF0;
+            --text-secondary: #8B90A0;
+            --text-tertiary: #555B6E;
+            --border: #282D3A;
+            --border-hover: #363C4D;
 
-            --coral: #E8634A;
-            --coral-soft: #FDF0ED;
-            --coral-mid: #F4A293;
-            --teal: #2AA89A;
-            --teal-soft: #EAF7F5;
-            --amber: #D4920A;
-            --amber-soft: #FDF6E5;
-            --indigo: #5C6AC4;
-            --indigo-soft: #EEEFFE;
+            --coral: #F07A64;
+            --coral-soft: rgba(240,122,100,0.12);
+            --coral-mid: rgba(240,122,100,0.25);
+            --teal: #3CC4B4;
+            --teal-soft: rgba(60,196,180,0.12);
+            --amber: #F0A820;
+            --amber-soft: rgba(240,168,32,0.12);
+            --indigo: #7B88E0;
+            --indigo-soft: rgba(123,136,224,0.12);
 
-            --shadow-sm: 0 1px 3px rgba(27,27,31,0.04), 0 1px 2px rgba(27,27,31,0.03);
-            --shadow-md: 0 4px 16px rgba(27,27,31,0.06), 0 1px 4px rgba(27,27,31,0.04);
-            --shadow-lg: 0 12px 40px rgba(27,27,31,0.08), 0 4px 12px rgba(27,27,31,0.04);
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.15);
+            --shadow-md: 0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.2);
+            --shadow-lg: 0 12px 40px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.25);
 
             --radius: 16px;
             --radius-sm: 10px;
@@ -57,8 +57,8 @@
             content: '';
             position: fixed; inset: 0;
             background:
-                radial-gradient(ellipse 50% 40% at 15% 0%, rgba(232,99,74,0.06) 0%, transparent 70%),
-                radial-gradient(ellipse 40% 50% at 85% 100%, rgba(42,168,154,0.04) 0%, transparent 70%);
+                radial-gradient(ellipse 50% 40% at 15% 0%, rgba(240,122,100,0.05) 0%, transparent 70%),
+                radial-gradient(ellipse 40% 50% at 85% 100%, rgba(60,196,180,0.04) 0%, transparent 70%);
             pointer-events: none; z-index: 0;
         }
 
@@ -148,7 +148,7 @@
             transition: all 0.35s var(--ease-out);
             box-shadow: var(--shadow-md);
         }
-        .refresh-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); background: #2d2d33; }
+        .refresh-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); background: #d0d3dc; }
         .refresh-btn:active { transform: translateY(0); }
         .refresh-btn.loading { opacity: 0.55; cursor: wait; }
         .refresh-btn svg { transition: transform 0.5s var(--ease-out); }
@@ -288,7 +288,7 @@
             transition: background 0.2s ease;
         }
         tbody tr:last-child { border-bottom: none; }
-        tbody tr:hover { background: rgba(232,99,74,0.02); }
+        tbody tr:hover { background: rgba(240,122,100,0.04); }
         td { padding: 13px 18px; font-size: 14px; color: var(--text); }
         td:first-child { font-weight: 600; }
 
@@ -332,7 +332,7 @@
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 3px; }
-        ::selection { background: var(--coral-soft); color: var(--coral); }
+        ::selection { background: rgba(240,122,100,0.25); color: var(--coral); }
     </style>
 </head>
 
@@ -482,7 +482,7 @@
         let chartInstances = {};
         Chart.defaults.font.family = "'DM Sans', sans-serif";
         Chart.defaults.font.size = 12;
-        Chart.defaults.color = '#AEAEB5';
+        Chart.defaults.color = '#555B6E';
 
         function showLoader()  { document.getElementById("loader").classList.remove("hidden"); }
         function hideLoader()  { document.getElementById("loader").classList.add("hidden"); }
@@ -575,14 +575,12 @@
 
         function renderBreakdown(rows) {
             document.querySelector("#detailTable tbody").innerHTML = rows.slice(0, 100).map(r => {
-                const status = r.WASHING && r.WASHING !== 'nan' && r.WASHING !== ''
-                    ? (r['WASH ED'] && r['WASH ED'] !== 'nan' && r['WASH ED'] !== '' ? "Completed" : "Washing")
-                    : "Making";
+                const status = r.MAKING > 0 ? "Making" : (r.OUT_WASHING > 0 && r.OUT_WASHING >= r.IN_WASHING ? "Completed" : "Washing");
                 const cls = status === "Making" ? "badge-making" : status === "Washing" ? "badge-washing" : "badge-completed";
                 return `<tr>
                     <td>${r.CLIENT}</td>
                     <td style="color:var(--text-secondary)">${r.WASHING || "—"}</td>
-                    <td>${r.PCS}</td>
+                    <td>${(r.PCS||0).toLocaleString()}</td>
                     <td><span class="badge ${cls}">${status}</span></td>
                 </tr>`;
             }).join("") || `<tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);padding:32px">No data</td></tr>`;
@@ -597,20 +595,20 @@
                 data: {
                     labels: top.map(r => r.CLIENT),
                     datasets: [
-                        { label: "Making",     data: top.map(r => r.MAKING),      backgroundColor: "#E8634A", borderRadius: 8, borderSkipped: false, barPercentage: 0.65 },
-                        { label: "In Washing", data: top.map(r => r.IN_WASHING),   backgroundColor: "#D4920A", borderRadius: 8, borderSkipped: false, barPercentage: 0.65 },
-                        { label: "Completed",  data: top.map(r => r.OUT_WASHING),  backgroundColor: "#2AA89A", borderRadius: 8, borderSkipped: false, barPercentage: 0.65 }
+                        { label: "Making",     data: top.map(r => r.MAKING),      backgroundColor: "#F07A64", borderRadius: 8, borderSkipped: false, barPercentage: 0.65 },
+                        { label: "In Washing", data: top.map(r => r.IN_WASHING),   backgroundColor: "#F0A820", borderRadius: 8, borderSkipped: false, barPercentage: 0.65 },
+                        { label: "Completed",  data: top.map(r => r.OUT_WASHING),  backgroundColor: "#3CC4B4", borderRadius: 8, borderSkipped: false, barPercentage: 0.65 }
                     ]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
                     plugins: {
                         legend: { labels: { boxWidth: 12, padding: 20, usePointStyle: true, pointStyle: 'rectRounded', font: { weight: 500 } } },
-                        tooltip: { backgroundColor: '#1B1B1F', titleFont: { family: "'DM Sans'", weight: 600 }, bodyFont: { family: "'DM Sans'" }, padding: 14, cornerRadius: 10 }
+                        tooltip: { backgroundColor: '#282D3A', titleFont: { family: "'DM Sans'", weight: 600 }, bodyFont: { family: "'DM Sans'" }, padding: 14, cornerRadius: 10, titleColor: '#E8EAF0', bodyColor: '#8B90A0' }
                     },
                     scales: {
-                        y: { ticks: { color: "#AEAEB5" }, grid: { color: "#E8E5DE", drawBorder: false }, beginAtZero: true },
-                        x: { ticks: { color: "#7C7C85", maxRotation: 45 }, grid: { display: false } }
+                        y: { ticks: { color: "#555B6E" }, grid: { color: "#282D3A", drawBorder: false }, beginAtZero: true },
+                        x: { ticks: { color: "#8B90A0", maxRotation: 45 }, grid: { display: false } }
                     }
                 }
             });
@@ -625,15 +623,15 @@
                     labels: rows.map(r => r.WASHER),
                     datasets: [{
                         data: rows.map(r => r.PENDING),
-                        backgroundColor: ["#E8634A","#2AA89A","#5C6AC4","#D4920A","#9C6ADE","#47C1BF","#F49342"],
-                        borderColor: '#FFFFFF', borderWidth: 3, borderRadius: 4
+                        backgroundColor: ["#F07A64","#3CC4B4","#7B88E0","#F0A820","#B07AE8","#5CC4C0","#F4A060"],
+                        borderColor: '#1E222B', borderWidth: 3, borderRadius: 4
                     }]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false, cutout: '62%',
                     plugins: {
                         legend: { position: "bottom", labels: { boxWidth: 10, padding: 18, usePointStyle: true, pointStyle: 'circle', font: { weight: 500 } } },
-                        tooltip: { backgroundColor: '#1B1B1F', titleFont: { family: "'DM Sans'", weight: 600 }, bodyFont: { family: "'DM Sans'" }, padding: 14, cornerRadius: 10 }
+                        tooltip: { backgroundColor: '#282D3A', titleFont: { family: "'DM Sans'", weight: 600 }, bodyFont: { family: "'DM Sans'" }, padding: 14, cornerRadius: 10, titleColor: '#E8EAF0', bodyColor: '#8B90A0' }
                     }
                 }
             });

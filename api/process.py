@@ -219,11 +219,18 @@ class handler(BaseHTTPRequestHandler):
             else:
                 washer_summary = pd.DataFrame(columns=['WASHER', 'IN_WASHING', 'OUT_WASHING', 'PENDING'])
 
+            # Breakdown: group by CLIENT + WASHING, sum PCS/MAKING/IN_WASHING/OUT_WASHING
+            breakdown = (
+                master.groupby(['CLIENT', 'WASHING'], as_index=False, sort=False)
+                .agg({'PCS': 'sum', 'MAKING': 'sum', 'IN_WASHING': 'sum', 'OUT_WASHING': 'sum'})
+            )
+            breakdown = breakdown.sort_values('PCS', ascending=False)
+
             summary_time = time.time() - summary_start
 
             total_time = time.time() - start_time
             response_data = {
-                "rows": all_rows,
+                "rows": breakdown.to_dict(orient='records'),
                 "client_summary": client_summary.to_dict(orient='records'),
                 "washer_summary": washer_summary.to_dict(orient='records'),
                 "total_pcs": sum(r['PCS'] for r in all_rows),
