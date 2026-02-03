@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Production Dashboard — Futuristic</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #151A26;
+            --bg-warm: #1C2233;
+            --surface: #212840;
+            --surface-hover: #283050;
+            --text: #E0E5F0;
+            --text-secondary: #8892AB;
+            --text-dim: #4E5872;
+            --border: rgba(100,160,255,0.1);
+            --border-active: rgba(100,180,255,0.25);
+
+            --cyan: #00D4F5;
+            --cyan-dim: rgba(0,212,245,0.1);
+            --cyan-glow: rgba(0,212,245,0.2);
+            --red: #FF5C75;
+            --red-dim: rgba(255,92,117,0.1);
+            --green: #2EE89A;
+            --green-dim: rgba(46,232,154,0.1);
+            --amber: #FFB830;
+            --amber-dim: rgba(255,184,48,0.1);
+
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.2);
+            --shadow-md: 0 6px 24px rgba(0,0,0,0.3);
+            --shadow-lg: 0 16px 48px rgba(0,0,0,0.35);
+
+            --radius: 14px;
+            --radius-sm: 10px;
+            --font-display: 'Outfit', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--font-display);
+            background: var(--bg);
+            color: var(--text);
+            overflow-x: hidden;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Ambient glow */
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            background:
+                radial-gradient(ellipse 70% 50% at 10% 20%, rgba(0,212,245,0.04) 0%, transparent 60%),
+                radial-gradient(ellipse 50% 70% at 90% 85%, rgba(46,232,154,0.03) 0%, transparent 60%),
+                radial-gradient(ellipse 30% 30% at 50% 50%, rgba(255,92,117,0.02) 0%, transparent 60%);
+            pointer-events: none; z-index: 0;
+        }
+
+        /* Subtle grid overlay */
+        body::after {
+            content: '';
+            position: fixed; inset: 0;
+            background-image:
+                linear-gradient(rgba(100,160,255,0.018) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(100,160,255,0.018) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none; z-index: 0;
+            mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black, transparent);
+        }
+
+        /* ── Loader ── */
+        .loader-overlay {
+            position: fixed; inset: 0; background: var(--bg);
+            display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 24px;
+            z-index: 9999; transition: opacity 0.6s var(--ease-out), visibility 0.6s;
+        }
+        .loader-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+        .loader-ring { width: 52px; height: 52px; position: relative; }
+        .loader-ring::before, .loader-ring::after {
+            content: ''; position: absolute; inset: 0; border-radius: 50%; border: 2px solid transparent;
+        }
+        .loader-ring::before { border-top-color: var(--cyan); border-right-color: var(--cyan); animation: spin 1s linear infinite; }
+        .loader-ring::after { inset: 6px; border-bottom-color: rgba(0,212,245,0.3); border-left-color: rgba(0,212,245,0.3); animation: spin 1.8s linear infinite reverse; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loader-text {
+            font-family: var(--font-mono); font-size: 12px;
+            color: var(--text-secondary); letter-spacing: 2px; text-transform: uppercase;
+        }
+        .loader-text::after { content: '|'; animation: blink-c 0.8s step-end infinite; color: var(--cyan); }
+        @keyframes blink-c { 50% { opacity: 0; } }
+
+        /* ── Container ── */
+        .container { position: relative; z-index: 1; max-width: 1560px; margin: 0 auto; padding: 32px 28px 48px; }
+
+        /* ── Header ── */
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 36px; flex-wrap: wrap; gap: 16px;
+        }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+
+        .logo-mark {
+            width: 38px; height: 38px; border: 2px solid var(--cyan); border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--cyan-dim);
+        }
+        .logo-mark::before {
+            content: ''; width: 11px; height: 11px; background: var(--cyan); border-radius: 3px;
+            box-shadow: 0 0 10px var(--cyan), 0 0 20px rgba(0,212,245,0.3);
+        }
+
+        .header h1 { font-family: var(--font-display); font-size: 24px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; }
+        .header h1 span { color: var(--cyan); font-weight: 800; }
+
+        .header-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+        .pill {
+            font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary);
+            background: var(--cyan-dim); padding: 8px 14px; border-radius: 100px;
+            border: 1px solid var(--border); letter-spacing: 0.5px;
+            display: flex; align-items: center; gap: 6px; white-space: nowrap;
+        }
+        .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 6px var(--cyan); animation: pdot 2s ease-in-out infinite; }
+        @keyframes pdot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.7); } }
+
+        .refresh-btn {
+            font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+            padding: 9px 18px; background: transparent; color: var(--cyan);
+            border: 1px solid var(--border-active); border-radius: 100px; cursor: pointer;
+            display: flex; align-items: center; gap: 8px; letter-spacing: 1px;
+            text-transform: uppercase; transition: all 0.3s ease; position: relative; overflow: hidden;
+        }
+        .refresh-btn::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, var(--cyan-dim), transparent); opacity: 0; transition: opacity 0.3s; }
+        .refresh-btn:hover::before { opacity: 1; }
+        .refresh-btn:hover { border-color: var(--cyan); box-shadow: 0 0 20px rgba(0,212,245,0.12), inset 0 0 20px rgba(0,212,245,0.04); transform: translateY(-1px); }
+        .refresh-btn:active { transform: translateY(0); }
+        .refresh-btn.loading { opacity: 0.5; cursor: wait; }
+        .refresh-btn svg, .refresh-btn span { position: relative; z-index: 1; }
+
+        /* ── Error ── */
+        .error-message {
+            font-family: var(--font-mono); font-size: 13px;
+            background: var(--red-dim); border: 1px solid rgba(255,92,117,0.3); color: var(--red);
+            padding: 14px 20px; border-radius: var(--radius-sm);
+            margin-bottom: 20px; display: none; align-items: center; gap: 10px;
+        }
+        .error-message.show { display: flex; }
+
+        /* ── KPI Cards ── */
+        .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+
+        .kpi-card {
+            position: relative; background: var(--surface); backdrop-filter: blur(12px);
+            border: 1px solid var(--border); border-radius: var(--radius); padding: 24px 22px;
+            transition: all 0.4s var(--ease-out); overflow: hidden;
+            animation: fup 0.6s var(--ease-out) both;
+        }
+        .kpi-card:nth-child(1) { animation-delay: 0.05s; }
+        .kpi-card:nth-child(2) { animation-delay: 0.1s; }
+        .kpi-card:nth-child(3) { animation-delay: 0.15s; }
+        .kpi-card:nth-child(4) { animation-delay: 0.2s; }
+        @keyframes fup { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Corner brackets */
+        .kpi-card::before, .kpi-card::after {
+            content: ''; position: absolute; width: 13px; height: 13px;
+            border-style: solid; border-color: var(--text-dim); transition: border-color 0.4s;
+        }
+        .kpi-card::before { top: 8px; left: 8px; border-width: 2px 0 0 2px; }
+        .kpi-card::after  { bottom: 8px; right: 8px; border-width: 0 2px 2px 0; }
+
+        .kpi-card:hover {
+            border-color: var(--border-active); background: var(--surface-hover);
+            transform: translateY(-4px);
+            box-shadow: 0 14px 44px rgba(0,0,0,0.3), 0 0 0 1px rgba(0,212,245,0.08);
+        }
+        .kpi-card:hover::before, .kpi-card:hover::after { border-color: var(--cyan); }
+
+        .kpi-accent { position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+        .kpi-card:nth-child(1) .kpi-accent { background: linear-gradient(90deg, var(--cyan), transparent 70%); }
+        .kpi-card:nth-child(2) .kpi-accent { background: linear-gradient(90deg, var(--red), transparent 70%); }
+        .kpi-card:nth-child(3) .kpi-accent { background: linear-gradient(90deg, var(--amber), transparent 70%); }
+        .kpi-card:nth-child(4) .kpi-accent { background: linear-gradient(90deg, var(--green), transparent 70%); }
+
+        .kpi-icon {
+            width: 34px; height: 34px; border-radius: 9px;
+            display: flex; align-items: center; justify-content: center; margin-bottom: 14px; font-size: 15px;
+        }
+        .kpi-card:nth-child(1) .kpi-icon { background: var(--cyan-dim); color: var(--cyan); }
+        .kpi-card:nth-child(2) .kpi-icon { background: var(--red-dim); color: var(--red); }
+        .kpi-card:nth-child(3) .kpi-icon { background: var(--amber-dim); color: var(--amber); }
+        .kpi-card:nth-child(4) .kpi-icon { background: var(--green-dim); color: var(--green); }
+
+        .kpi-label { font-family: var(--font-mono); font-size: 10px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
+        .kpi-value { font-family: var(--font-mono); font-size: 32px; font-weight: 700; letter-spacing: -1px; line-height: 1; margin-bottom: 4px; }
+        .kpi-card:nth-child(1) .kpi-value { color: var(--cyan); }
+        .kpi-card:nth-child(2) .kpi-value { color: var(--red); }
+        .kpi-card:nth-child(3) .kpi-value { color: var(--amber); }
+        .kpi-card:nth-child(4) .kpi-value { color: var(--green); }
+        .kpi-sub { font-size: 12px; color: var(--text-dim); }
+
+        /* ── Grid + Cards ── */
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 16px; }
+        .card {
+            position: relative; background: var(--surface); backdrop-filter: blur(12px);
+            border: 1px solid var(--border); border-radius: var(--radius); padding: 24px;
+            transition: all 0.4s var(--ease-out); animation: fup 0.6s var(--ease-out) both; animation-delay: 0.25s;
+        }
+        .card:hover { border-color: var(--border-active); box-shadow: 0 14px 44px rgba(0,0,0,0.25); }
+        .card-full { grid-column: 1 / -1; }
+
+        .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .card-title { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; letter-spacing: 0.3px; }
+        .card-title .card-icon {
+            width: 30px; height: 30px; border-radius: 8px; background: var(--cyan-dim);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .card-badge {
+            font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);
+            text-transform: uppercase; letter-spacing: 1.5px;
+            padding: 4px 10px; border: 1px solid var(--border); border-radius: 100px;
+        }
+
+        /* ── Tables ── */
+        .table-wrapper { overflow-x: auto; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; }
+        thead { background: rgba(100,160,255,0.03); }
+        th {
+            font-family: var(--font-mono); padding: 12px 16px; text-align: left; font-weight: 600;
+            color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.5px; font-size: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        tbody tr { border-bottom: 1px solid rgba(100,160,255,0.04); transition: all 0.2s ease; }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: rgba(0,212,245,0.03); }
+        td { padding: 12px 16px; font-size: 13px; color: var(--text); }
+        td:first-child { font-weight: 600; font-family: var(--font-display); }
+
+        .badge {
+            font-family: var(--font-mono); display: inline-block; padding: 4px 10px; border-radius: 6px;
+            font-size: 11px; font-weight: 600; min-width: 52px; text-align: center; letter-spacing: 0.3px;
+        }
+        .badge-making    { background: var(--red-dim);   color: var(--red); }
+        .badge-washing   { background: var(--amber-dim); color: var(--amber); }
+        .badge-completed { background: var(--green-dim); color: var(--green); }
+        .badge-pending   { background: var(--amber-dim); color: var(--amber); }
+
+        .chart-container { position: relative; height: 320px; }
+
+        .footer {
+            text-align: center; padding: 24px 20px; margin-top: 28px;
+            border-top: 1px solid var(--border);
+            font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); letter-spacing: 1px;
+            display: flex; align-items: center; justify-content: center; gap: 16px;
+        }
+        .footer .sep { width: 3px; height: 3px; background: var(--text-dim); border-radius: 50%; }
+
+        @media (max-width: 1200px) { .grid { grid-template-columns: 1fr; } }
+        @media (max-width: 900px)  { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 600px)  {
+            .container { padding: 20px 14px; }
+            .header h1 { font-size: 20px; }
+            .kpi-grid { grid-template-columns: 1fr; }
+            .kpi-value { font-size: 26px; }
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(100,160,255,0.15); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(100,160,255,0.3); }
+        ::selection { background: var(--cyan-dim); color: var(--cyan); }
+    </style>
+</head>
+
+<body>
+    <div class="loader-overlay" id="loader">
+        <div class="loader-ring"></div>
+        <div class="loader-text">Initializing</div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <div class="logo-mark"></div>
+                <h1>Production <span>Dashboard</span></h1>
+            </div>
+            <div class="header-controls">
+                <div class="pill"><div class="dot"></div><span id="processingTime">—</span> ms</div>
+                <button class="refresh-btn" id="refreshBtn" onclick="loadData()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                    <span>Refresh</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <div class="kpi-grid">
+            <div class="kpi-card"><div class="kpi-accent"></div><div class="kpi-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div><div class="kpi-label">Total Pieces</div><div class="kpi-value" id="totalPcs">0</div><div class="kpi-sub">All tracked items</div></div>
+            <div class="kpi-card"><div class="kpi-accent"></div><div class="kpi-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div class="kpi-label">Making</div><div class="kpi-value" id="totalMaking">0</div><div class="kpi-sub">In production</div></div>
+            <div class="kpi-card"><div class="kpi-accent"></div><div class="kpi-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg></div><div class="kpi-label">In Washing</div><div class="kpi-value" id="totalInWashing">0</div><div class="kpi-sub">Being processed</div></div>
+            <div class="kpi-card"><div class="kpi-accent"></div><div class="kpi-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div><div class="kpi-label">Completed</div><div class="kpi-value" id="totalOutWashing">0</div><div class="kpi-sub">Ready for delivery</div></div>
+        </div>
+
+        <div class="grid">
+            <div class="card"><div class="card-header"><div class="card-title"><div class="card-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>Client Performance</div><div class="card-badge">Top 10</div></div><div class="chart-container"><canvas id="clientChart"></canvas></div></div>
+            <div class="card"><div class="card-header"><div class="card-title"><div class="card-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></div>Washer Load</div><div class="card-badge">Pending</div></div><div class="chart-container"><canvas id="washerChart"></canvas></div></div>
+        </div>
+
+        <div class="grid">
+            <div class="card"><div class="card-header"><div class="card-title"><div class="card-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>Client Summary</div></div><div class="table-wrapper"><table id="clientTable"><thead><tr><th>Client</th><th>Making</th><th>In Washing</th><th>Completed</th></tr></thead><tbody></tbody></table></div></div>
+            <div class="card"><div class="card-header"><div class="card-title"><div class="card-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>Washer Summary</div></div><div class="table-wrapper"><table id="washerTable"><thead><tr><th>Washer</th><th>In</th><th>Out</th><th>Pending</th></tr></thead><tbody></tbody></table></div></div>
+        </div>
+
+        <div class="card card-full" style="animation-delay:.35s">
+            <div class="card-header"><div class="card-title"><div class="card-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>Complete Breakdown</div><div class="card-badge">First 100</div></div>
+            <div class="table-wrapper"><table id="detailTable"><thead><tr><th>Client</th><th>Washing</th><th>Pcs</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+        </div>
+
+        <div class="footer"><span id="timestamp">Last updated: —</span><div class="sep"></div><span>Production Tracker v2.0</span></div>
+    </div>
+
+    <script>
+        let chartInstances = {};
+        Chart.defaults.font.family = "'JetBrains Mono', monospace";
+        Chart.defaults.font.size = 11;
+        Chart.defaults.color = '#4E5872';
+
+        function showLoader()  { document.getElementById("loader").classList.remove("hidden"); }
+        function hideLoader()  { document.getElementById("loader").classList.add("hidden"); }
+        function showError(msg) {
+            const el = document.getElementById("errorMessage");
+            el.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> ${msg}`;
+            el.classList.add("show");
+        }
+        function hideError() { document.getElementById("errorMessage").classList.remove("show"); }
+
+        function animateValue(id, target) {
+            const el = document.getElementById(id);
+            const start = parseInt(el.textContent.replace(/,/g, '')) || 0;
+            const diff = target - start;
+            if (diff === 0) { el.textContent = target.toLocaleString(); return; }
+            const duration = 600, t0 = performance.now();
+            (function step(now) {
+                const p = Math.min((now - t0) / duration, 1);
+                el.textContent = Math.round(start + diff * (1 - Math.pow(1 - p, 3))).toLocaleString();
+                if (p < 1) requestAnimationFrame(step);
+            })(t0);
+        }
+
+        async function loadData() {
+            showLoader(); hideError();
+            document.getElementById("refreshBtn").classList.add("loading");
+            document.getElementById("refreshBtn").disabled = true;
+            try {
+                let apiUrl = window.location.origin + "/api/process";
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                    apiUrl = "http://localhost:3000/api/process";
+                const res = await fetch(apiUrl, { method: 'GET', headers: { 'Accept': 'application/json' } });
+                if (!res.ok) throw new Error(`API returned ${res.status}`);
+                let data;
+                const ct = res.headers.get('content-type');
+                if (ct && ct.includes('application/json')) {
+                    const body = await res.text();
+                    try { data = JSON.parse(JSON.parse(body).body); } catch { data = JSON.parse(body); }
+                } else throw new Error('Invalid response format');
+                if (data.error) { showError(data.error); hideLoader(); return; }
+
+                animateValue("totalPcs", data.total_pcs || 0);
+                animateValue("totalMaking", data.total_making || 0);
+                animateValue("totalInWashing", data.total_in_washing || 0);
+                animateValue("totalOutWashing", data.total_out_washing || 0);
+                if (data.processing_time) document.getElementById("processingTime").textContent = Math.round(data.processing_time * 1000);
+
+                renderClientTable(data.client_summary || []);
+                renderWasherTable(data.washer_summary || []);
+                renderBreakdown(data.rows || []);
+                renderClientChart(data.client_summary || []);
+                renderWasherChart(data.washer_summary || []);
+                const ts = new Date(data.timestamp);
+                document.getElementById("timestamp").textContent = `Last updated: ${ts.toLocaleString()}`;
+            } catch (err) {
+                showError(err.message || "Failed to load data.");
+                console.error("Error:", err);
+            } finally {
+                hideLoader();
+                document.getElementById("refreshBtn").classList.remove("loading");
+                document.getElementById("refreshBtn").disabled = false;
+            }
+        }
+
+        function renderClientTable(rows) {
+            document.querySelector("#clientTable tbody").innerHTML = rows.map(r => `<tr><td>${r.CLIENT}</td><td><span class="badge badge-making">${(r.MAKING||0).toLocaleString()}</span></td><td><span class="badge badge-washing">${(r.IN_WASHING||0).toLocaleString()}</span></td><td><span class="badge badge-completed">${(r.OUT_WASHING||0).toLocaleString()}</span></td></tr>`).join("") || `<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:32px">No data</td></tr>`;
+        }
+        function renderWasherTable(rows) {
+            document.querySelector("#washerTable tbody").innerHTML = rows.map(r => `<tr><td>${r.WASHER}</td><td><span class="badge badge-washing">${(r.IN_WASHING||0).toLocaleString()}</span></td><td><span class="badge badge-completed">${(r.OUT_WASHING||0).toLocaleString()}</span></td><td><span class="badge badge-pending">${(r.PENDING||0).toLocaleString()}</span></td></tr>`).join("") || `<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:32px">No data</td></tr>`;
+        }
+        function renderBreakdown(rows) {
+            document.querySelector("#detailTable tbody").innerHTML = rows.slice(0, 100).map(r => {
+                const status = r.MAKING > 0 ? "MAKE" : (r.OUT_WASHING > 0 && r.OUT_WASHING >= r.IN_WASHING ? "DONE" : "WASH");
+                const cls = status === "MAKE" ? "badge-making" : status === "WASH" ? "badge-washing" : "badge-completed";
+                return `<tr><td>${r.CLIENT}</td><td style="font-family:var(--font-mono);font-size:12px;color:var(--text-secondary)">${r.WASHING || "—"}</td><td style="font-family:var(--font-mono)">${(r.PCS||0).toLocaleString()}</td><td><span class="badge ${cls}">${status}</span></td></tr>`;
+            }).join("") || `<tr><td colspan="4" style="text-align:center;color:var(--text-dim);padding:32px">No data</td></tr>`;
+        }
+
+        function renderClientChart(rows) {
+            const ctx = document.getElementById("clientChart");
+            if (chartInstances.clientChart) chartInstances.clientChart.destroy();
+            const top = rows.slice(0, 10);
+            chartInstances.clientChart = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: top.map(r => r.CLIENT),
+                    datasets: [
+                        { label: "Making",     data: top.map(r => r.MAKING),     backgroundColor: "rgba(255,92,117,0.75)", borderRadius: 4, borderSkipped: false, barPercentage: 0.7 },
+                        { label: "In Washing", data: top.map(r => r.IN_WASHING), backgroundColor: "rgba(255,184,48,0.75)", borderRadius: 4, borderSkipped: false, barPercentage: 0.7 },
+                        { label: "Completed",  data: top.map(r => r.OUT_WASHING), backgroundColor: "rgba(46,232,154,0.75)", borderRadius: 4, borderSkipped: false, barPercentage: 0.7 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { boxWidth: 12, padding: 20, usePointStyle: true, pointStyle: 'rectRounded' } },
+                        tooltip: { backgroundColor: 'rgba(21,26,38,0.95)', borderColor: 'rgba(0,212,245,0.2)', borderWidth: 1, padding: 12, cornerRadius: 8 }
+                    },
+                    scales: {
+                        y: { ticks: { color: "#4E5872" }, grid: { color: "rgba(100,160,255,0.06)", drawBorder: false }, beginAtZero: true },
+                        x: { ticks: { color: "#8892AB", maxRotation: 45 }, grid: { display: false } }
+                    }
+                }
+            });
+        }
+        function renderWasherChart(rows) {
+            const ctx = document.getElementById("washerChart");
+            if (chartInstances.washerChart) chartInstances.washerChart.destroy();
+            chartInstances.washerChart = new Chart(ctx, {
+                type: "doughnut",
+                data: {
+                    labels: rows.map(r => r.WASHER),
+                    datasets: [{
+                        data: rows.map(r => r.PENDING),
+                        backgroundColor: ["rgba(0,212,245,0.8)","rgba(255,92,117,0.8)","rgba(46,232,154,0.8)","rgba(255,184,48,0.8)","rgba(130,90,230,0.8)","rgba(0,180,255,0.8)","rgba(255,150,60,0.8)"],
+                        borderColor: '#212840', borderWidth: 3, borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, cutout: '65%',
+                    plugins: {
+                        legend: { position: "bottom", labels: { boxWidth: 10, padding: 16, usePointStyle: true, pointStyle: 'circle' } },
+                        tooltip: { backgroundColor: 'rgba(21,26,38,0.95)', borderColor: 'rgba(0,212,245,0.2)', borderWidth: 1, padding: 12, cornerRadius: 8 }
+                    }
+                }
+            });
+        }
+
+        window.addEventListener("load", loadData);
+    </script>
+</body>
+</html>
