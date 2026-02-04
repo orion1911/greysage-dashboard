@@ -214,7 +214,8 @@ class handler(BaseHTTPRequestHandler):
                     .agg({'IN_WASHING': 'sum', 'OUT_WASHING': 'sum'})
                     .rename(columns={'WASHING': 'WASHER'})
                 )
-                washer_summary['PENDING'] = washer_summary['IN_WASHING'] - washer_summary['OUT_WASHING']
+                # Ensure pending never goes negative; if more OUT than IN, pending = 0
+                washer_summary['PENDING'] = (washer_summary['IN_WASHING'] - washer_summary['OUT_WASHING']).clip(lower=0)
                 washer_summary = washer_summary.sort_values('PENDING', ascending=False)
             else:
                 washer_summary = pd.DataFrame(columns=['WASHER', 'IN_WASHING', 'OUT_WASHING', 'PENDING'])
