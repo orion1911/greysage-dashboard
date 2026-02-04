@@ -56,7 +56,7 @@ def process_all_sheets(excel_bytes):
     wb = openpyxl.load_workbook(BytesIO(excel_bytes), read_only=True, data_only=True)
     all_rows = []
     # keep records from November 2025 inclusive
-    _date_cutoff = datetime(2025, 11, 1)
+    _date_cutoff = datetime(2025, 12, 9)
 
     try:
         for sheet_name in MAKER_SHEETS:
