@@ -218,6 +218,8 @@ class handler(BaseHTTPRequestHandler):
                 .agg({'MAKING': 'sum', 'IN_WASHING': 'sum', 'OUT_WASHING': 'sum'})
                 .sort_values('MAKING', ascending=False)
             )
+            # Add TOTAL = MAKING + IN_WASHING + OUT_WASHING for client stats/graphs
+            client_summary['TOTAL'] = client_summary[['MAKING', 'IN_WASHING', 'OUT_WASHING']].sum(axis=1)
 
             # Washer summary
             washer_data = master[master['WASHING'].str.len() > 0]
