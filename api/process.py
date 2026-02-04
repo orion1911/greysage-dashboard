@@ -16,7 +16,8 @@ ONEDRIVE_URL = os.getenv("ONEDRIVE_FILE_URL")
 MAKER_SHEETS = ["GREYSAGE", "ARVIND", "MIDSEN", "HASAN", "RAMA", "HAKIM", "RAMU", "ANIL", "SINU"]
 
 # Column indices we care about (found dynamically per sheet)
-REQUIRED_COLS = {'CLIENT', 'WASHING', 'PCS', 'WASH ED'}
+# Include DATE (column B) so we can filter rows by date
+REQUIRED_COLS = {'CLIENT', 'WASHING', 'PCS', 'WASH ED', 'DATE'}
 
 # Stop reading after this many consecutive rows with no real data
 MAX_EMPTY_STREAK = 20
@@ -54,6 +55,8 @@ def process_all_sheets(excel_bytes):
     """
     wb = openpyxl.load_workbook(BytesIO(excel_bytes), read_only=True, data_only=True)
     all_rows = []
+    # keep records from November 2025 inclusive
+    _date_cutoff = datetime(2025, 11, 1)
 
     try:
         for sheet_name in MAKER_SHEETS:
@@ -93,6 +96,7 @@ def process_all_sheets(excel_bytes):
             pi = col_map.get('PCS')
             wi = col_map.get('WASHING')
             wei = col_map.get('WASH ED')
+            di = col_map.get('DATE')
 
             # Process data rows
             for row in sheet_rows[header_idx + 1:]:
@@ -104,6 +108,15 @@ def process_all_sheets(excel_bytes):
                 client = str(client).strip()
                 if not client or client == 'nan':
                     continue
+
+                # filter by DATE column if present (keep from Nov 2025 inclusive)
+                if di is not None and di < ncols and row[di] is not None:
+                    try:
+                        row_date = pd.to_datetime(row[di], errors='coerce')
+                    except Exception:
+                        row_date = pd.NaT
+                    if pd.isna(row_date) or row_date < _date_cutoff:
+                        continue
 
                 pcs = 0
                 if pi is not None and pi < ncols and row[pi] is not None:
