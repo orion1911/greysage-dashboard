@@ -128,7 +128,7 @@ def process_all_sheets(excel_bytes):
                 wash_ed_empty = wash_ed == ''
 
                 making = pcs if washing_empty else 0
-                in_washing = 0 if washing_empty else pcs
+                in_washing = 0 if (washing_empty or not wash_ed_empty) else pcs
                 out_washing = pcs if (not washing_empty and not wash_ed_empty) else 0
 
                 all_rows.append({
