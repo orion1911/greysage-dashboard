@@ -17,7 +17,7 @@ MAKER_SHEETS = ["GREYSAGE", "ARVIND", "MIDSEN", "HASAN", "RAMA", "HAKIM", "RAMU"
 
 # Column indices we care about (found dynamically per sheet)
 # Include DATE (column B) so we can filter rows by date
-REQUIRED_COLS = {'CLIENT', 'WASHING', 'PCS', 'WASH ED', 'DATE'}
+REQUIRED_COLS = {'CLIENT', 'WASHING', 'PCS', 'WASH ED', 'DATE', 'LOT NO.'}
 
 # Stop reading after this many consecutive rows with no real data
 MAX_EMPTY_STREAK = 20
@@ -97,6 +97,7 @@ def process_all_sheets(excel_bytes):
             wi = col_map.get('WASHING')
             wei = col_map.get('WASH ED')
             di = col_map.get('DATE')
+            li = col_map.get('LOT NO.')
 
             # Process data rows
             for row in sheet_rows[header_idx + 1:]:
@@ -137,6 +138,12 @@ def process_all_sheets(excel_bytes):
                     if wash_ed == 'nan':
                         wash_ed = ''
 
+                lot_no = ''
+                if li is not None and li < ncols and row[li] is not None:
+                    lot_no = str(row[li]).strip()
+                    if lot_no == 'nan':
+                        lot_no = ''
+
                 washing_empty = washing == ''
                 wash_ed_empty = wash_ed == ''
 
@@ -151,6 +158,7 @@ def process_all_sheets(excel_bytes):
                     'MAKING': making,
                     'IN_WASHING': in_washing,
                     'OUT_WASHING': out_washing,
+                    'LOT_NO': lot_no,
                 })
     finally:
         wb.close()
@@ -229,18 +237,28 @@ class handler(BaseHTTPRequestHandler):
                     .agg({'IN_WASHING': 'sum', 'OUT_WASHING': 'sum'})
                     .rename(columns={'WASHING': 'WASHER'})
                 )
-                # Ensure pending never goes negative; if more OUT than IN, pending = 0
-                washer_summary['PENDING'] = (washer_summary['IN_WASHING'] - washer_summary['OUT_WASHING']).clip(lower=0)
+                # PENDING = items currently at washer (IN_WASHING represents items waiting to be completed)
+                washer_summary['PENDING'] = washer_summary['IN_WASHING']
+                # Add TOTAL = IN_WASHING + OUT_WASHING (total pieces handled by washer)
+                washer_summary['TOTAL'] = washer_summary['IN_WASHING'] + washer_summary['OUT_WASHING']
                 washer_summary = washer_summary.sort_values('PENDING', ascending=False)
             else:
-                washer_summary = pd.DataFrame(columns=['WASHER', 'IN_WASHING', 'OUT_WASHING', 'PENDING'])
+                washer_summary = pd.DataFrame(columns=['WASHER', 'IN_WASHING', 'OUT_WASHING', 'PENDING', 'TOTAL'])
 
-            # Breakdown: group by CLIENT + WASHING, sum PCS/MAKING/IN_WASHING/OUT_WASHING
+            # Breakdown: group by CLIENT + WASHING, sum PCS/MAKING/IN_WASHING/OUT_WASHING, collect LOT_NOs
             breakdown = (
                 master.groupby(['CLIENT', 'WASHING'], as_index=False, sort=False)
-                .agg({'PCS': 'sum', 'MAKING': 'sum', 'IN_WASHING': 'sum', 'OUT_WASHING': 'sum'})
+                .agg({
+                    'PCS': 'sum',
+                    'MAKING': 'sum',
+                    'IN_WASHING': 'sum',
+                    'OUT_WASHING': 'sum',
+                    'LOT_NO': lambda x: ', '.join(sorted(set(v for v in x if v)))
+                })
             )
-            breakdown = breakdown.sort_values('PCS', ascending=False)
+            # Add lot count
+            breakdown['LOT_COUNT'] = breakdown['LOT_NO'].apply(lambda x: len(x.split(', ')) if x else 0)
+            breakdown = breakdown.sort_values(['CLIENT', 'PCS'], ascending=[True, False])
 
             summary_time = time.time() - summary_start
 

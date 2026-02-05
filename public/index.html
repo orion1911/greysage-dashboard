@@ -311,6 +311,10 @@
         .badge-completed { background: var(--teal-soft);  color: var(--teal); }
         .badge-pending   { background: var(--coral-soft); color: var(--coral); }
 
+        .lot-cell { display: inline-flex; align-items: center; cursor: help; }
+        .lot-cell .badge { min-width: 28px; padding: 3px 8px; font-size: 11px; }
+        .lot-numbers { font-size: 11px; color: var(--text-tertiary); font-family: monospace; white-space: nowrap; }
+
         .chart-container { position: relative; height: 320px; }
 
         .footer {
@@ -380,13 +384,13 @@
         </div>
 
         <div class="grid">
-            <div class="card"><div class="card-header"><div class="card-title"><div class="card-title-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><h3>Client Summary</h3></div></div><div class="table-wrapper"><table id="clientTable"><thead><tr><th>Client</th><th>Making</th><th>In Washing</th><th>Completed</th></tr></thead><tbody></tbody></table></div></div>
-            <div class="card"><div class="card-header"><div class="card-title"><div class="card-title-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><h3>Washer Summary</h3></div></div><div class="table-wrapper"><table id="washerTable"><thead><tr><th>Washer</th><th>In</th><th>Out</th><th>Pending</th></tr></thead><tbody></tbody></table></div></div>
+            <div class="card"><div class="card-header"><div class="card-title"><div class="card-title-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div><h3>Client Summary</h3></div></div><div class="table-wrapper"><table id="clientTable"><thead><tr><th>Client</th><th>Total</th><th>Making</th><th>In Washing</th><th>Completed</th></tr></thead><tbody></tbody></table></div></div>
+            <div class="card"><div class="card-header"><div class="card-title"><div class="card-title-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><h3>Washer Summary</h3></div></div><div class="table-wrapper"><table id="washerTable"><thead><tr><th>Washer</th><th>Total</th><th>In</th><th>Out</th><th>Pending</th></tr></thead><tbody></tbody></table></div></div>
         </div>
 
         <div class="card card-full" style="animation-delay:.35s">
             <div class="card-header"><div class="card-title"><div class="card-title-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div><h3>Complete Breakdown</h3></div><div class="card-meta">First 100 items</div></div>
-            <div class="table-wrapper"><table id="detailTable"><thead><tr><th>Client</th><th>Washing</th><th>Pcs</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+            <div class="table-wrapper"><table id="detailTable"><thead><tr><th>Client</th><th>Washer</th><th>Pcs</th><th>Making</th><th>In Washing</th><th>Completed</th><th>Lots</th></tr></thead><tbody></tbody></table></div>
         </div>
 
         <div class="footer"><span id="timestamp">Last updated: —</span><div class="dot"></div><span>Production Tracker v2</span></div>
@@ -486,17 +490,25 @@
         }
 
         function renderClientTable(rows) {
-            document.querySelector("#clientTable tbody").innerHTML = rows.map(r => `<tr><td>${r.CLIENT}</td><td><span class="badge badge-making">${(r.MAKING||0).toLocaleString()}</span></td><td><span class="badge badge-washing">${(r.IN_WASHING||0).toLocaleString()}</span></td><td><span class="badge badge-completed">${(r.OUT_WASHING||0).toLocaleString()}</span></td></tr>`).join("") || `<tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);padding:32px">No data</td></tr>`;
+            document.querySelector("#clientTable tbody").innerHTML = rows.map(r => `<tr><td>${r.CLIENT}</td><td><strong>${(r.TOTAL||0).toLocaleString()}</strong></td><td><span class="badge badge-making">${(r.MAKING||0).toLocaleString()}</span></td><td><span class="badge badge-washing">${(r.IN_WASHING||0).toLocaleString()}</span></td><td><span class="badge badge-completed">${(r.OUT_WASHING||0).toLocaleString()}</span></td></tr>`).join("") || `<tr><td colspan="5" style="text-align:center;color:var(--text-tertiary);padding:32px">No data</td></tr>`;
         }
         function renderWasherTable(rows) {
-            document.querySelector("#washerTable tbody").innerHTML = rows.map(r => `<tr><td>${r.WASHER}</td><td><span class="badge badge-washing">${(r.IN_WASHING||0).toLocaleString()}</span></td><td><span class="badge badge-completed">${(r.OUT_WASHING||0).toLocaleString()}</span></td><td><span class="badge badge-pending">${(r.PENDING||0).toLocaleString()}</span></td></tr>`).join("") || `<tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);padding:32px">No data</td></tr>`;
+            document.querySelector("#washerTable tbody").innerHTML = rows.map(r => `<tr><td>${r.WASHER}</td><td><strong>${(r.TOTAL||0).toLocaleString()}</strong></td><td><span class="badge badge-washing">${(r.IN_WASHING||0).toLocaleString()}</span></td><td><span class="badge badge-completed">${(r.OUT_WASHING||0).toLocaleString()}</span></td><td><span class="badge badge-pending">${(r.PENDING||0).toLocaleString()}</span></td></tr>`).join("") || `<tr><td colspan="5" style="text-align:center;color:var(--text-tertiary);padding:32px">No data</td></tr>`;
         }
         function renderBreakdown(rows) {
             document.querySelector("#detailTable tbody").innerHTML = rows.slice(0, 100).map(r => {
-                const status = r.MAKING > 0 ? "Making" : (r.OUT_WASHING > 0 && r.OUT_WASHING >= r.IN_WASHING ? "Completed" : "Washing");
-                const cls = status === "Making" ? "badge-making" : status === "Washing" ? "badge-washing" : "badge-completed";
-                return `<tr><td>${r.CLIENT}</td><td style="color:var(--text-secondary)">${r.WASHING || "—"}</td><td>${(r.PCS||0).toLocaleString()}</td><td><span class="badge ${cls}">${status}</span></td></tr>`;
-            }).join("") || `<tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);padding:32px">No data</td></tr>`;
+                const making = r.MAKING > 0 ? `<span class="badge badge-making">${(r.MAKING).toLocaleString()}</span>` : '';
+                const inWashing = r.IN_WASHING > 0 ? `<span class="badge badge-washing">${(r.IN_WASHING).toLocaleString()}</span>` : '';
+                const completed = r.OUT_WASHING > 0 ? `<span class="badge badge-completed">${(r.OUT_WASHING).toLocaleString()}</span>` : '';
+                const lotCount = r.LOT_COUNT || 0;
+                const lotNos = r.LOT_NO || '';
+                let lotsDisplay = '';
+                if (lotCount > 0) {
+                    const shortLots = lotNos.length > 25 ? lotNos.substring(0, 25) + '...' : lotNos;
+                    lotsDisplay = `<span class="lot-cell" title="${lotNos}"><span class="badge" style="background:var(--indigo-soft);color:var(--indigo);margin-right:6px">${lotCount}</span><span class="lot-numbers">${shortLots}</span></span>`;
+                }
+                return `<tr><td>${r.CLIENT}</td><td style="color:var(--text-secondary)">${r.WASHING || "—"}</td><td><strong>${(r.PCS||0).toLocaleString()}</strong></td><td>${making}</td><td>${inWashing}</td><td>${completed}</td><td>${lotsDisplay}</td></tr>`;
+            }).join("") || `<tr><td colspan="7" style="text-align:center;color:var(--text-tertiary);padding:32px">No data</td></tr>`;
         }
 
         function renderClientChart(rows) {
@@ -508,6 +520,7 @@
                 data: {
                     labels: top.map(r => r.CLIENT),
                     datasets: [
+                        { label: "Total",      data: top.map(r => r.TOTAL),      backgroundColor: getCSS('--indigo'), borderRadius: 8, borderSkipped: false, barPercentage: 0.65 },
                         { label: "Making",     data: top.map(r => r.MAKING),     backgroundColor: getCSS('--coral'), borderRadius: 8, borderSkipped: false, barPercentage: 0.65 },
                         { label: "In Washing", data: top.map(r => r.IN_WASHING), backgroundColor: getCSS('--amber'), borderRadius: 8, borderSkipped: false, barPercentage: 0.65 },
                         { label: "Completed",  data: top.map(r => r.OUT_WASHING), backgroundColor: getCSS('--teal'), borderRadius: 8, borderSkipped: false, barPercentage: 0.65 }
